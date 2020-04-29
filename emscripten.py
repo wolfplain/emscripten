@@ -664,7 +664,8 @@ def align_memory(addr):
 
 
 def align_static_bump(metadata):
-  metadata['staticBump'] = align_memory(metadata['staticBump'])
+  if not shared.Settings.RELOCATABLE:
+    metadata['staticBump'] = align_memory(metadata['staticBump'])
   return metadata['staticBump']
 
 
@@ -690,7 +691,9 @@ def update_settings_glue(metadata, DEBUG):
 
   shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE += [x[1:] for x in metadata['externs']]
 
-  shared.Settings.MAX_GLOBAL_ALIGN = metadata['maxGlobalAlign']
+  if not shared.Settings.WASM_BACKEND:
+    shared.Settings.MAX_GLOBAL_ALIGN = metadata['maxGlobalAlign']
+
   shared.Settings.IMPLEMENTED_FUNCTIONS = metadata['implementedFunctions']
   shared.Settings.WEAK_DECLARES = metadata.get('weakDeclares', [])
 
@@ -2497,7 +2500,6 @@ def load_metadata_wasm(metadata_raw, DEBUG):
     'implementedFunctions': [],
     'externs': [],
     'simd': False, # Obsolete, always False
-    'maxGlobalAlign': 0,
     'staticBump': 0,
     'tableSize': 0,
     'initializers': [],
