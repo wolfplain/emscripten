@@ -44,10 +44,7 @@ if (typeof WebAssembly !== 'object') {
 
 var wasmMemory;
 
-// In fastcomp asm.js, we don't need a wasm Table at all.
-// In the wasm backend, we polyfill the WebAssembly object,
-// so this creates a (non-native-wasm) table for us.
-#include "runtime_init_table.js"
+#include "runtime_table.js"
 
 #if USE_PTHREADS
 // For sending to workers.
@@ -428,11 +425,7 @@ function callRuntimeCallbacks(callbacks) {
     }
     var func = callback.func;
     if (typeof func === 'number') {
-      if (callback.arg === undefined) {
-        Module['dynCall_v'](func);
-      } else {
-        Module['dynCall_vi'](func, callback.arg);
-      }
+      tableCall(func, callback.arg);
     } else {
       func(callback.arg === undefined ? null : callback.arg);
     }
@@ -902,6 +895,7 @@ function createWasm() {
     // then exported.
     // TODO: do not create a Memory earlier in JS
     wasmMemory = exports['memory'];
+    wasmTable = exports['__indirect_function_table'];
     updateGlobalBufferAndViews(wasmMemory.buffer);
 #if ASSERTIONS
     writeStackCookie();

@@ -301,7 +301,7 @@ function createInvokeFunction(sig) {
   return function() {
     var sp = stackSave();
     try {
-      return Module['dynCall_' + sig].apply(null, arguments);
+      return dynCall(sig, arguments[0], Array.prototype.slice.call(arguments, 1));
     } catch(e) {
       stackRestore(sp);
       if (e !== e+0 && e !== 'longjmp') throw e;
@@ -602,24 +602,32 @@ function makeBigInt(low, high, unsigned) {
 
 /** @param {Array=} args */
 function dynCall(sig, ptr, args) {
-  if (args && args.length) {
 #if ASSERTIONS
+  if (args && args.length) {
     // j (64-bit integer) must be passed in as two numbers [low 32, high 32].
     assert(args.length === sig.substring(1).replace(/j/g, '--').length);
-#endif
-#if ASSERTIONS
-    assert(('dynCall_' + sig) in Module, 'bad function pointer type - no table for sig \'' + sig + '\'');
-#endif
-    return Module['dynCall_' + sig].apply(null, [ptr].concat(args));
   } else {
-#if ASSERTIONS
     assert(sig.length == 1);
-#endif
-#if ASSERTIONS
-    assert(('dynCall_' + sig) in Module, 'bad function pointer type - no table for sig \'' + sig + '\'');
-#endif
-    return Module['dynCall_' + sig].call(null, ptr);
   }
+#endif
+
+#if !WASM_BIGINT
+  if (sig.indexOf('j') != -1) {
+#if ASSERTIONS
+      assert(('dynCall_' + sig) in Module, 'bad function pointer type - no table for sig \'' + sig + '\'');
+#endif
+    if (args && args.length) {
+      return Module['dynCall_' + sig].apply(null, [ptr].concat(args));
+    } else {
+      return Module['dynCall_' + sig].call(null, ptr);
+    }
+  }
+#endif
+
+  // TODO(sbc): Use ...args once ES6 is allowed:
+  // tableCall(ptr, ...args);
+  // https://github.com/emscripten-core/emscripten/issues/11984
+  return tableCall.apply(null, [ptr].concat(args));
 }
 
 var tempRet0 = 0;

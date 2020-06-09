@@ -102,7 +102,7 @@ assert(buffer instanceof SharedArrayBuffer, 'requested a shared WebAssembly.Memo
 #endif
 #endif
 
-#include "runtime_init_table.js"
+#include "runtime_table.js"
 
 #else
 
@@ -211,11 +211,7 @@ function callRuntimeCallbacks(callbacks) {
     }
     var func = callback.func;
     if (typeof func === 'number') {
-      if (callback.arg === undefined) {
-        dynCall_v(func);
-      } else {
-        dynCall_vi(func, callback.arg);
-      }
+      tableCall(func, callback.arg);
     } else {
       func(callback.arg === undefined ? null : callback.arg);
     }

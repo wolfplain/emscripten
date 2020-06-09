@@ -1221,16 +1221,22 @@ function jsCall_%s(index%s) {
   def make_invoke(sig, named=True):
     legal_sig = JS.legalize_sig(sig) # TODO: do this in extcall, jscall?
     args = ','.join(['a' + str(i) for i in range(1, len(legal_sig))])
-    args = 'index' + (',' if args else '') + args
     ret = 'return ' if sig[0] != 'v' else ''
-    body = '%s%s(%s);' % (ret, JS.make_dynCall(sig), args)
+    args = 'index' + (',' if args else '') + args
+    # wasm2c doesn't yet support for the new `tableCall`
+    if Settings.WASM2C or not JS.is_legal_sig(sig):
+      body = '%s%s(%s);' % (ret, JS.make_dynCall(sig), args)
+    else:
+      body = '%stableCall(%s);' % (ret, args)
     # C++ exceptions are numbers, and longjmp is a string 'longjmp'
     if Settings.SUPPORT_LONGJMP:
       rethrow = "if (e !== e+0 && e !== 'longjmp') throw e;"
     else:
       rethrow = "if (e !== e+0) throw e;"
 
-    ret = '''function%s(%s) {
+    name = (' invoke_' + sig) if named else ''
+    ret = '''\
+function%s(%s) {
   var sp = stackSave();
   try {
     %s
@@ -1239,7 +1245,8 @@ function jsCall_%s(index%s) {
     %s
     _setThrew(1, 0);
   }
-}''' % ((' invoke_' + sig) if named else '', args, body, rethrow)
+}''' % (name, args, body, rethrow)
+
     return ret
 
   @staticmethod

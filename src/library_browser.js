@@ -1181,15 +1181,9 @@ var LibraryBrowser = {
     Browser.mainLoop.arg = arg;
 
     var browserIterationFunc;
-    if (typeof arg !== 'undefined') {
-      browserIterationFunc = function() {
-        Module['dynCall_vi'](func, arg);
-      };
-    } else {
-      browserIterationFunc = function() {
-        Module['dynCall_v'](func);
-      };
-    }
+    browserIterationFunc = function() {
+      tableCall(func, arg);
+    };
 
 #if USE_CLOSURE_COMPILER
     // Closure compiler bug(?): Closure does not see that the assignment
