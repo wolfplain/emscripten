@@ -30,6 +30,7 @@ emranlib
 emrun
 emscons
 emsize
+tools/emdump
 '''.split()
 
 
