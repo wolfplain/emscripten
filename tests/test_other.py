@@ -480,10 +480,9 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
 
     # Combining object files into another object should also work, using the `-r` flag
     self.run_process([EMCC, '-r', 'twopart_main.o', 'twopart_side.o', '-o', 'combined.o'])
-    # We also support building without the `-r` flag but expect a warning
+    # Warn about legecy support for outputing object file without `-r`, `-c` or `-shared`
     err = self.run_process([EMCC, 'twopart_main.o', 'twopart_side.o', '-o', 'combined2.o'], stderr=PIPE).stderr
-    self.assertBinaryEqual('combined.o', 'combined2.o')
-    self.assertContained('warning: assuming object file output', err)
+    self.assertContained('warning: generated exectuable with object extension (.o)', err)
 
     # Should be two symbols (and in the wasm backend, also __original_main)
     syms = building.llvm_nm('combined.o')
@@ -3690,18 +3689,13 @@ int main()
       if suffix in ['.dylib', '.so']:
         cmd.append('-shared')
       err = self.run_process(cmd, stderr=PIPE).stderr
-      warning = 'When Emscripten compiles to a typical native suffix for shared libraries (.so, .dylib, .dll) then it emits an object file. You should then compile that to an emscripten SIDE_MODULE (using that flag) with suffix .wasm (for wasm) or .js (for asm.js).'
+      warning = 'linking a shared library via `-shared` will emit a static object file'
       self.assertContainedIf(warning, err, suffix in shared_suffixes)
 
   def test_side_module_without_proper_target(self):
-    # SIDE_MODULE is only meaningful when compiling to wasm (or js+wasm)
-    # otherwise, we are just linking bitcode, and should show an error
     for wasm in [0, 1]:
-      if self.is_wasm_backend() and not wasm:
-        continue
       print(wasm)
-      stderr = self.expect_fail([EMCC, path_from_root('tests', 'hello_world.cpp'), '-s', 'SIDE_MODULE=1', '-o', 'a.so', '-s', 'WASM=%d' % wasm])
-      self.assertContained('SIDE_MODULE must only be used when compiling to an executable shared library, and not when emitting an object file', stderr)
+      self.run_process([EMCC, path_from_root('tests', 'hello_world.cpp'), '-s', 'SIDE_MODULE=1', '-o', 'a.so', '-s', 'WASM=%d' % wasm])
 
   @no_wasm_backend('asm.js optimizations')
   def test_simplify_ifs(self):
@@ -7662,7 +7656,7 @@ int main() {
 
   def test_wasm_targets_side_module(self):
     # side modules do allow a wasm target
-    for opts, target in [([], 'a.out.wasm'), (['-o', 'lib.wasm'], 'lib.wasm')]:
+    for opts, target in [([], 'a.out.wasm'), (['-o', 'lib.wasm'], 'lib.wasm'), (['-o', 'lib.so'], 'lib.so'), (['-o', 'lib.foo'], 'lib.foo')]:
       # specified target
       print('building: ' + target)
       self.clear()
@@ -9649,15 +9643,6 @@ Module.arguments has been replaced with plain arguments_ (the initial value can 
     for engine in JS_ENGINES:
       self.assertContained('hello, world!', self.run_js('a.out.js', engine=engine))
 
-  def test_compile_only_with_object_extension(self):
-    # Emscripten supports compiling to an object file when the output has an
-    # object extension.
-    # Most compilers require the `-c` to be explicit.
-    self.run_process([EMCC, path_from_root('tests', 'hello_world.cpp'), '-c', '-o', 'hello1.o'])
-    err = self.run_process([EMCC, path_from_root('tests', 'hello_world.cpp'), '-o', 'hello2.o'], stderr=PIPE).stderr
-    self.assertContained('warning: assuming object file output', err)
-    self.assertBinaryEqual('hello1.o', 'hello2.o')
-
   def test_empty_output_extension(self):
     # Default to JS output when no extension is present
     self.run_process([EMCC, path_from_root('tests', 'hello_world.cpp'), '-Werror', '-o', 'hello'])
@@ -10048,7 +10033,9 @@ int main () {
     self.do_other_test(os.path.join('other', 'err'))
 
   def test_shared_flag(self):
-    self.run_process([EMCC, '-shared', path_from_root('tests', 'hello_world.c'), '-o', 'out.foo'])
+    # Test that `-shared` objects and object file but gives a warning
+    err = self.run_process([EMCC, '-shared', path_from_root('tests', 'hello_world.c'), '-o', 'out.foo'], stderr=PIPE).stderr
+    self.assertContained('linking a library via `-shared` will emit a static object', err)
     self.assertIsObjectFile('out.foo')
 
     # Test that using an exectuable output name overides the `-shared` flag, but produces a warning.

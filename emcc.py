@@ -1246,7 +1246,10 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
 
     asm_target = unsuffixed(target) + '.asm.js' # might not be used, but if it is, this is the name
     wasm_text_target = asm_target.replace('.asm.js', '.wat') # ditto, might not be used
-    wasm_binary_target = asm_target.replace('.asm.js', '.wasm') # ditto, might not be used
+    if shared.Settings.SIDE_MODULE or final_suffix in WASM_ENDINGS:
+      wasm_binary_target = target
+    else:
+      wasm_binary_target = asm_target.replace('.asm.js', '.wasm') # ditto, might not be used
     wasm_source_map_target = shared.replace_or_append_suffix(wasm_binary_target, '.map')
 
     # Apply user -jsD settings
@@ -1412,7 +1415,6 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       # in strict mode. Code should use the define __EMSCRIPTEN__ instead.
       cflags.append('-DEMSCRIPTEN')
 
-    # Treat the empty extension as an executable, to handle the commond case of `emcc -o foo foo.c`
     link_to_object = False
     if options.shared or options.relocatable:
       # Until we have a better story for actually producing runtime shared libraries
@@ -1422,13 +1424,9 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       if final_suffix in EXECUTABLE_ENDINGS:
         diagnostics.warning('emcc', '-shared/-r used with executable output suffix. This behaviour is deprecated.  Please remove -shared/-r to build an executable or avoid the executable suffix (%s) when building object files.' % final_suffix)
       else:
+        if options.shared:
+          diagnostics.warning('emcc', 'linking a library via `-shared` will emit a static object file.  This is form of emulation to support existing building system.  If you want to build a runtime shared library use the SIDE_MODULE setting instead.')
         link_to_object = True
-
-    if not link_to_object and not compile_only and final_suffix not in EXECUTABLE_ENDINGS:
-      # TODO(sbc): Remove this emscripten-specific special case.  We should only generate object
-      # file output with an explicit `-c` or `-r`.
-      diagnostics.warning('emcc', 'assuming object file output, based on output filename alone.  Add an explict `-c`, `-r` or `-shared` to avoid this warning')
-      link_to_object = True
 
     if shared.Settings.STACK_OVERFLOW_CHECK:
       shared.Settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE += ['$abortStackOverflow']
@@ -2114,7 +2112,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         return 0
 
       # Precompiled headers support
-      if has_header_inputs:
+      if has_header_inputs or 'header' in language_mode:
         headers = [header for _, header in input_files]
         for header in headers:
           if not header.endswith(HEADER_ENDINGS):
@@ -2274,12 +2272,6 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
 
     if link_to_object:
       with ToolchainProfiler.profile_block('linking to object file'):
-        # We have a specified target (-o <target>), which is not JavaScript or HTML, and
-        # we have multiple files: Link them
-        if shared.Settings.SIDE_MODULE:
-          exit_with_error('SIDE_MODULE must only be used when compiling to an executable shared library, and not when emitting an object file.  That is, you should be emitting a .wasm file (for wasm) or a .js file (for asm.js). Note that when compiling to a typical native suffix for a shared library (.so, .dylib, .dll; which many build systems do) then Emscripten emits an object file, which you should then compile to .wasm or .js with SIDE_MODULE.')
-        if final_suffix.lower() in ('.so', '.dylib', '.dll'):
-          diagnostics.warning('emcc', 'When Emscripten compiles to a typical native suffix for shared libraries (.so, .dylib, .dll) then it emits an object file. You should then compile that to an emscripten SIDE_MODULE (using that flag) with suffix .wasm (for wasm) or .js (for asm.js). (You may also want to adapt your build system to emit the more standard suffix for an object file, \'.bc\' or \'.o\', which would avoid this warning.)')
         logger.debug('link_to_object: ' + str(linker_inputs) + ' -> ' + target)
         if len(temp_files) == 1:
           temp_file = temp_files[0][1]
@@ -2289,6 +2281,9 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
           building.link_to_object(linker_inputs, target)
         logger.debug('stopping after linking to object file')
         return 0
+
+    if final_suffix in ('.o', '.bc', '.so', '.dylib') and not shared.Settings.SIDE_MODULE:
+     diagnostics.warning('emcc', 'generated exectuable with object extension (%s).  If you meant to build an object file please use `-c, `-r`, or `-shared`' % final_suffix)
 
     ## Continue on to create JavaScript
 
@@ -2732,12 +2727,12 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
 
       shared.JS.handle_license(final)
 
-      if final_suffix in JS_ENDINGS:
-        js_target = target
-      elif final_suffix in WASM_ENDINGS:
+      if final_suffix in WASM_ENDINGS:
         js_target = misc_temp_files.get(suffix='.js').name
-      else:
+      elif final_suffix == '.html':
         js_target = unsuffixed(target) + '.js'
+      else:
+        js_target = target
 
       # The JS is now final. Move it to its final location
       shutil.move(final, js_target)
