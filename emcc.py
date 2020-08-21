@@ -1569,6 +1569,9 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
         'removeRunDependency',
       ]
 
+    if shared.Settings.ASYNCIFY:
+      building.user_requested_exports += ['dynCall_ii', 'dynCall_vii']
+
     if shared.Settings.USE_PTHREADS:
       # memalign is used to ensure allocated thread stacks are aligned.
       shared.Settings.EXPORTED_FUNCTIONS += ['_memalign', '_malloc']
