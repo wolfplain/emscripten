@@ -1576,11 +1576,6 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       # memalign is used to ensure allocated thread stacks are aligned.
       shared.Settings.EXPORTED_FUNCTIONS += ['_memalign', '_malloc']
 
-      # dynCall_ii is used to call pthread entry points in worker.js (as
-      # metadce does not consider worker.js, which is external, we must
-      # consider it a user export, i.e., one which can never be removed).
-      building.user_requested_exports += ['dynCall_ii']
-
       if shared.Settings.MINIMAL_RUNTIME:
         building.user_requested_exports += ['exit']
 

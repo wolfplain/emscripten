@@ -63,6 +63,7 @@ static void fib(void * arg) {
 
 [[noreturn]]
 static void f(void *arg) {
+        printf("ff1\n");
     int *p = (int*)arg;
     *p = 0;
     leaf();
@@ -71,6 +72,7 @@ static void f(void *arg) {
 
     G.fibers[0].result = 1;
     G.fibers[0].swap(&G.main);
+        printf("ff2\n");
     abort();
 }
 
@@ -95,8 +97,10 @@ int main(int argc, char **argv) {
     printf("*");
     while(emscripten_fiber_swap(&G.main, &G.fibers[0].context), !G.fibers[0].result) {
         printf("%d-", i);
+        fflush(stdout);
         emscripten_fiber_swap(&G.main, &G.fibers[1].context);
         printf("%d-", i);
+        fflush(stdout);
     }
     printf("*\n");
 

@@ -1066,7 +1066,7 @@ var LibraryEmbind = {
   $embind__requireFunction: function(signature, rawFunction) {
     signature = readLatin1String(signature);
 
-    function makeDynCaller(dynCall) {
+    function makeDynCaller() {
 #if DYNAMIC_EXECUTION == 0
       var argCache = [rawFunction];
       return function() {
@@ -1074,7 +1074,7 @@ var LibraryEmbind = {
           for (var i = 0; i < arguments.length; i++) {
             argCache[i + 1] = arguments[i];
           }
-          return dynCall.apply(null, argCache);
+          return tableCall.apply(null, argCache);
       };
 #else
         var args = [];
@@ -1087,17 +1087,11 @@ var LibraryEmbind = {
         body    += '    return dynCall(rawFunction' + (args.length ? ', ' : '') + args.join(', ') + ');\n';
         body    += '};\n';
 
-        return (new Function('dynCall', 'rawFunction', body))(dynCall, rawFunction);
+        return (new Function('dynCall', 'rawFunction', body))(tableCall, rawFunction);
 #endif
     }
 
-#if MINIMAL_RUNTIME
-    var dc = asm['dynCall_' + signature];
-#else
-    var dc = Module['dynCall_' + signature];
-#endif
-    var fp = makeDynCaller(dc);
-
+    var fp = makeDynCaller();
     if (typeof fp !== "function") {
         throwBindingError("unknown function pointer with signature " + signature + ": " + rawFunction);
     }

@@ -4148,7 +4148,7 @@ LibraryManager.library = {
     var trace = _emscripten_get_callstack_js();
     var parts = trace.split('\n');
     for (var i = 0; i < parts.length; i++) {
-      var ret = {{{ makeDynCall('iii') }}}(func, 0, arg);
+      var ret = tableCall(func, 0, arg);
       if (ret !== 0) return;
     }
   },
@@ -4197,7 +4197,7 @@ LibraryManager.library = {
   emscripten_scan_stack: function(func) {
     var base = STACK_BASE; // TODO verify this is right on pthreads
     var end = stackSave();
-    {{{ makeDynCall('vii') }}}(func, Math.min(base, end), Math.max(base, end));
+    tableCall(func, Math.min(base, end), Math.max(base, end));
   },
 
   // misc definitions to avoid unnecessary unresolved symbols being reported
