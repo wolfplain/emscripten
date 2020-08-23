@@ -588,10 +588,13 @@ def backend_binaryen_passes():
   # safe heap must run before post-emscripten, so post-emscripten can apply the sbrk ptr
   if shared.Settings.SAFE_HEAP:
     passes += ['--safe-heap']
-  if shared.Settings.OPT_LEVEL > 0:
+  # --post-emscripten is normally just an optimization, however, in standalone
+  # mode we must use it to embed emscripten_get_sbrk_ptr (that is, we
+  # can't call an import to do it, as wasm VMs don't recognize it)
+  if shared.Settings.OPT_LEVEL > 0 or shared.Settings.STANDALONE_WASM:
     passes += ['--post-emscripten']
-    if not shared.Settings.EXIT_RUNTIME:
-      passes += ['--no-exit-runtime']
+  if shared.Settings.OPT_LEVEL > 0 and not shared.Settings.EXIT_RUNTIME:
+    passes += ['--no-exit-runtime']
   if shared.Settings.OPT_LEVEL > 0 or shared.Settings.SHRINK_LEVEL > 0:
     passes += [building.opt_level_to_str(shared.Settings.OPT_LEVEL, shared.Settings.SHRINK_LEVEL)]
   elif shared.Settings.STANDALONE_WASM:
