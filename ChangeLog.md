@@ -18,6 +18,10 @@ See docs/process.md for how version tagging works.
 Current Trunk
 -------------
 - Allow polymorphic types to be used without RTTI when using embind. (#10914)
+- The only way to build a reactor (without a main function) in `STANDALONE_WASM`
+  mode is to build with `--no-entry`.  Previouly exporting a list of functions
+  that didn't include `_main` would imply this option.  Now the list of
+  `EXPORTED_FUNCTIONS` is not relevant.
 - Only strip the LLVM producer's section in release builds. In `-O0` builds, we
   try to leave the wasm from LLVM unmodified as much as possible, so if it
   emitted the producers section, it will be there. Normally that only matters

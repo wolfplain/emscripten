@@ -765,11 +765,10 @@ var NODE_CODE_CACHING = 0;
 // generated code even after running closure compiler (on "Module").  Note the
 // necessary prefix of "_".
 //
-// Note also that this is the full list of exported functions - if you have a
-// main() function and want it to run, you must include it in this list (as
-// _main is by default in this value, and if you override it without keeping it
-// there, you are in effect removing it).
-var EXPORTED_FUNCTIONS = ['_main'];
+// By default if this settings is not specified on the command line the
+// `main` function will be implicitly exported.  In STANDALONE_WASM mode the
+// default export is `_start`.
+var EXPORTED_FUNCTIONS = [];
 
 // If true, we export all the symbols that are present in JS onto the Module
 // object. This does not affect which symbols will be present - it does not
