@@ -259,7 +259,7 @@ class EmccOptions(object):
     self.relocatable = False
 
 
-def use_source_map(options):
+def use_source_map():
   return shared.Settings.DEBUG_LEVEL >= 4
 
 
@@ -327,7 +327,7 @@ class JSOptimizer(object):
     if self.cleanup_shell and 'last' in passes:
       passes += ['cleanup']
     logger.debug('applying js optimization passes: %s', ' '.join(passes))
-    final = building.js_optimizer(final, passes, use_source_map(self),
+    final = building.js_optimizer(final, passes, use_source_map(),
                                   self.extra_info, just_split=just_split,
                                   just_concat=just_concat,
                                   output_filename=self.in_temp(os.path.basename(final) + '.jsopted.js'),
@@ -357,7 +357,7 @@ def embed_memfile(options):
           (shared.Settings.MEM_INIT_METHOD == 0 and
            (not shared.Settings.MAIN_MODULE and
             not shared.Settings.SIDE_MODULE and
-            not use_source_map(options))))
+            not use_source_map())))
 
 
 def expand_byte_size_suffixes(value):
@@ -607,6 +607,11 @@ def backend_binaryen_passes():
     passes += ['--low-memory-unused']
   if shared.Settings.DEBUG_LEVEL < 3:
     passes += ['--strip-debug']
+  # DWARF is unneeded if we are emitting a source map
+  # see other.test_check_sourcemapurl
+  # FIXME?
+  if use_source_map():
+    passes += ['--strip-dwarf']
   if shared.Settings.OPT_LEVEL > 0:
     if not shared.Settings.EMIT_PRODUCERS_SECTION:
       passes += ['--strip-producers']
@@ -926,7 +931,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       options.memory_init_file = shared.Settings.OPT_LEVEL >= 2
 
     # TODO: support source maps with js_transform
-    if options.js_transform and use_source_map(options):
+    if options.js_transform and use_source_map():
       logger.warning('disabling source maps because a js transform is being done')
       shared.Settings.DEBUG_LEVEL = 3
 
@@ -1814,7 +1819,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
 
       options.binaryen_passes += backend_binaryen_passes()
 
-    if shared.Settings.WASM2JS and use_source_map(options):
+    if shared.Settings.WASM2JS and use_source_map():
       exit_with_error('wasm2js does not support source maps yet (debug in wasm for now)')
 
     if shared.Settings.EVAL_CTORS and not shared.Settings.WASM:
@@ -2173,7 +2178,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       temp_basename = unsuffixed(final)
       wasm_temp = temp_basename + '.wasm'
       shutil.move(wasm_temp, wasm_binary_target)
-      if use_source_map(options):
+      if use_source_map():
         shutil.move(wasm_temp + '.map', wasm_source_map_target)
 
     # exit block 'emscript'
@@ -2281,7 +2286,7 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       # src = re.sub(r'\n+[ \n]*\n+', '\n', src)
       # open(final, 'w').write(src)
 
-      if use_source_map(options) and not shared.Settings.WASM:
+      if use_source_map() and not shared.Settings.WASM:
         emit_js_source_maps(target, optimizer.js_transform_tempfiles)
 
       # track files that will need native eols
@@ -2675,7 +2680,7 @@ def do_binaryen(target, asm_target, options, memfile, wasm_binary_target,
                 optimizer):
   global final
   logger.debug('using binaryen')
-  if use_source_map(options) and not shared.Settings.SOURCE_MAP_BASE:
+  if use_source_map() and not shared.Settings.SOURCE_MAP_BASE:
     logger.warning("Wasm source map won't be usable in a browser without --source-map-base")
   binaryen_bin = building.get_binaryen_bin()
   # whether we need to emit -g (function name debug info) in the final wasm
