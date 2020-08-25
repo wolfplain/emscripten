@@ -1140,12 +1140,14 @@ There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR P
       shared.Settings.EXPECT_MAIN = 0
     elif shared.Settings.STANDALONE_WASM:
       if '_main' in shared.Settings.EXPORTED_FUNCTIONS:
-        diagnostics.warning('export-main', 'including `_main` in EXPORTED_FUNCTIONS is not necessary in standalone mode')
+        # TODO(sbc): Make this into a warning?
+        loffer.debug('including `_main` in EXPORTED_FUNCTIONS is not necessary in standalone mode')
     else:
       # In normal non-standalone mode we have special handling of `_main` in EXPORTED_FUNCTIONS.
-      # 1. If the specifies exports, but doesn't include `_main` we assume they want to build a
+      # 1. If the user specifies exports, but doesn't include `_main` we assume they want to build a
       #    reactor.
-      # 2. If the user doesn't export anything we default to exporting `_main`.
+      # 2. If the user doesn't export anything we default to exporting `_main` (unless `--no-entry`
+      #    is specified (see above).
       if 'EXPORTED_FUNCTIONS' in settings_key_changes:
         if '_main' not in shared.Settings.USER_EXPORTED_FUNCTIONS:
           shared.Settings.EXPECT_MAIN = 0

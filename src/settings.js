@@ -762,12 +762,12 @@ var NODE_CODE_CACHING = 0;
 
 // Functions that are explicitly exported. These functions are kept alive
 // through LLVM dead code elimination, and also made accessible outside of the
-// generated code even after running closure compiler (on "Module").  Note the
-// necessary prefix of "_".
+// generated code even after running closure compiler (on "Module").  The
+// symbols listed here require an `_` prefix.
 //
-// By default if this settings is not specified on the command line the
-// `main` function will be implicitly exported.  In STANDALONE_WASM mode the
-// default export is `_start`.
+// By default if this setting is not specified on the command line the
+// `_main` function will be implicitly exported.  In STANDALONE_WASM mode the
+// default export is `__start` (or `__initialize` if --no-entry is specified).
 var EXPORTED_FUNCTIONS = [];
 
 // If true, we export all the symbols that are present in JS onto the Module
