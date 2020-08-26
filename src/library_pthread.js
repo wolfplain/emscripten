@@ -8,7 +8,7 @@ var LibraryPThread = {
   $PThread__postset: 'if (!ENVIRONMENT_IS_PTHREAD) PThread.initMainThreadBlock(); else PThread.initWorker();',
   $PThread__deps: ['$registerPthreadPtr',
                    '$ERRNO_CODES', 'emscripten_futex_wake', '$killThread',
-                   '$cancelThread', '$cleanupThread'],
+                   '$cancelThread', '$cleanupThread', '_main_thread_futex_wait_address'],
   $PThread: {
     MAIN_THREAD_ID: 1, // A special constant that identifies the main JS thread ID.
     mainThreadInfo: {
@@ -55,7 +55,7 @@ var LibraryPThread = {
       })});
 #endif
 
-      PThread.mainThreadBlock = {{{ makeStaticAlloc(C_STRUCTS.pthread.__size__) }}};
+      PThread.mainThreadBlock = _malloc({{{ C_STRUCTS.pthread.__size__ }}});
 
       for (var i = 0; i < {{{ C_STRUCTS.pthread.__size__ }}}/4; ++i) HEAPU32[PThread.mainThreadBlock/4+i] = 0;
 
@@ -68,11 +68,13 @@ var LibraryPThread = {
       {{{ makeSetValue('headPtr', 0, 'headPtr', 'i32') }}};
 
       // Allocate memory for thread-local storage.
-      var tlsMemory = {{{ makeStaticAlloc(cDefine('PTHREAD_KEYS_MAX') * 4) }}};
+      var tlsMemory = _malloc({{{ cDefine('PTHREAD_KEYS_MAX') * 4 }}});
       for (var i = 0; i < {{{ cDefine('PTHREAD_KEYS_MAX') }}}; ++i) HEAPU32[tlsMemory/4+i] = 0;
       Atomics.store(HEAPU32, (PThread.mainThreadBlock + {{{ C_STRUCTS.pthread.tsd }}} ) >> 2, tlsMemory); // Init thread-local-storage memory array.
       Atomics.store(HEAPU32, (PThread.mainThreadBlock + {{{ C_STRUCTS.pthread.tid }}} ) >> 2, PThread.mainThreadBlock); // Main thread ID.
       Atomics.store(HEAPU32, (PThread.mainThreadBlock + {{{ C_STRUCTS.pthread.pid }}} ) >> 2, {{{ PROCINFO.pid }}}); // Process ID.
+
+      __main_thread_futex_wait_address = _malloc(4);
 
 #if PTHREADS_PROFILING
       PThread.createProfilerBlock(PThread.mainThreadBlock);
@@ -96,7 +98,7 @@ var LibraryPThread = {
 
 #if PTHREADS_PROFILING
     createProfilerBlock: function(pthreadPtr) {
-      var profilerBlock = (pthreadPtr == PThread.mainThreadBlock) ? {{{ makeStaticAlloc(C_STRUCTS.thread_profiler_block.__size__) }}} : _malloc({{{ C_STRUCTS.thread_profiler_block.__size__ }}});
+      var profilerBlock = _malloc({{{ C_STRUCTS.thread_profiler_block.__size__ }}});
       Atomics.store(HEAPU32, (pthreadPtr + {{{ C_STRUCTS.pthread.profilerBlock }}} ) >> 2, profilerBlock);
 
       // Zero fill contents at startup.
@@ -1104,7 +1106,7 @@ var LibraryPThread = {
   },
 
   // Stores the memory address that the main thread is waiting on, if any.
-  _main_thread_futex_wait_address: '{{{ makeStaticAlloc(4) }}}',
+  _main_thread_futex_wait_address: '0',
 
   // Returns 0 on success, or one of the values -ETIMEDOUT, -EWOULDBLOCK or -EINVAL on error.
   emscripten_futex_wait__deps: ['_main_thread_futex_wait_address', 'emscripten_main_thread_process_queued_calls'],
